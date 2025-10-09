@@ -4,46 +4,71 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using Model;
+using System.IO;
+using WinFormCatShelterLaba1;
 
-namespace WinFormCatShelterLaba1
+namespace WindowsFormsCatShelter
 {
-    public partial class MainForm : Form
+    public partial class MainForm : Form, ICatDataObserver
     {
-        private CatService catService = new CatService();
+        private CatDataService catService = CatDataService.Instance;
+        private readonly string _dataFilePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "SharedCatsData.json"));
         private BindingList<Cat> catsBindingList;
 
         public MainForm()
         {
             InitializeComponent();
             InitializeDataGridView();
+
+            // Регистрируем форму как наблюдателя
+            catService.RegisterObserver(this);
+
             LoadCats();
         }
 
         private void InitializeDataGridView()
         {
+            // Настраиваем DataGridView
             dataGridViewCats.AutoGenerateColumns = true;
             dataGridViewCats.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dataGridViewCats.ReadOnly = true;
             dataGridViewCats.AllowUserToAddRows = false;
+
+            // Настраиваем автоматическое изменение размера колонок
+            dataGridViewCats.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        }
+
+        // Реализация интерфейса наблюдателя
+        public void OnCatDataChanged()
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(LoadCats));
+            }
+            else
+            {
+                LoadCats();
+            }
         }
 
         private void LoadCats()
         {
-            var cats = catService.GetAllCats();
-            catsBindingList = new BindingList<Cat>(cats);
+            try
+            {
+                var cats = catService.GetAllCats();
+                catsBindingList = new BindingList<Cat>(cats);
 
-            // Привязка данных
-            dataGridViewCats.DataSource = catsBindingList;
-
-            // Обновление счетчик
-            labelTotal.Text = $"Всего котов: {cats.Count}";
-
-            // Обновление отображения
-            dataGridViewCats.Refresh();
+                dataGridViewCats.DataSource = catsBindingList;
+                labelTotal.Text = $"Всего котов: {cats.Count}";
+                dataGridViewCats.Refresh();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при загрузке данных: {ex.Message}", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void buttonAdd_Click(object sender, EventArgs e)
@@ -54,12 +79,13 @@ namespace WinFormCatShelterLaba1
                 try
                 {
                     catService.AddCat(addForm.NewCat);
-                    LoadCats(); // Перезагружаем данные
-                    MessageBox.Show("Кот успешно добавлен!");
+                    MessageBox.Show("Кот успешно добавлен!", "Успех",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Ошибка: {ex.Message}");
+                    MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
         }
@@ -75,18 +101,20 @@ namespace WinFormCatShelterLaba1
                     try
                     {
                         catService.UpdateCat(editForm.UpdatedCat);
-                        LoadCats(); // Перезагружаем данные
-                        MessageBox.Show("Данные кота обновлены!");
+                        MessageBox.Show("Данные кота обновлены!", "Успех",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Ошибка: {ex.Message}");
+                        MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
             else
             {
-                MessageBox.Show("Выберите кота для редактирования");
+                MessageBox.Show("Выберите кота для редактирования", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -104,18 +132,20 @@ namespace WinFormCatShelterLaba1
                     try
                     {
                         catService.DeleteCat(selectedCat.Id);
-                        LoadCats(); // Перезагружаем данные
-                        MessageBox.Show("Кот удален!");
+                        MessageBox.Show("Кот удален!", "Успех",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
                     }
                     catch (Exception ex)
                     {
-                        MessageBox.Show($"Ошибка: {ex.Message}");
+                        MessageBox.Show($"Ошибка: {ex.Message}", "Ошибка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
             else
             {
-                MessageBox.Show("Выберите кота для удаления");
+                MessageBox.Show("Выберите кота для удаления", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
 
@@ -131,7 +161,8 @@ namespace WinFormCatShelterLaba1
 
             message += $"\nВсего котов: {catService.GetTotalCats()}";
 
-            MessageBox.Show(message, "Статистика приюта");
+            MessageBox.Show(message, "Статистика приюта",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void buttonRefresh_Click(object sender, EventArgs e)
@@ -139,13 +170,18 @@ namespace WinFormCatShelterLaba1
             LoadCats();
         }
 
-        // Двойной клик по строке для редактирования
         private void dataGridViewCats_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0)
             {
                 buttonEdit_Click(sender, e);
             }
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs e)
+        {
+            base.OnFormClosed(e);
+            catService.UnregisterObserver(this);
         }
     }
 }
