@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using WinFormCatShelterLaba1;
 
-namespace WinFormCatShelterLaba1
+namespace WindowsFormsCatShelter
 {
     internal static class Program
     {

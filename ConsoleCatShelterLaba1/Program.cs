@@ -1,17 +1,19 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Model;
+using System.IO;
 
-namespace ConsoleCatShelterLaba1
+namespace ConsoleCatShelter
 {
     class Program
     {
-        static CatService catService = new CatService();
+        static CatDataService catService = CatDataService.Instance;
+        private readonly string _dataFilePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "SharedCatsData.json"));
+
+
         static void Main(string[] args)
         {
+
+
             while (true)
             {
                 Console.Clear();
@@ -33,10 +35,13 @@ namespace ConsoleCatShelterLaba1
                     case "3": EditCat(); break;
                     case "4": DeleteCat(); break;
                     case "5": ShowStats(); break;
-                    case "6": return;
+                    case "6":
+                        Console.WriteLine("Данные сохранены. До свидания!");
+                        return;
                 }
             }
         }
+
         static void ShowAllCats()
         {
             Console.Clear();
@@ -44,9 +49,17 @@ namespace ConsoleCatShelterLaba1
             Console.WriteLine("ID | Имя | Порода | Возраст");
             Console.WriteLine("---------------------------");
 
-            foreach (var cat in catService.GetAllCats())
+            var cats = catService.GetAllCats();
+            if (cats.Count == 0)
             {
-                Console.WriteLine($"{cat.Id} | {cat.Name} | {cat.Breed} | {cat.Age}");
+                Console.WriteLine("Котов нет в приюте");
+            }
+            else
+            {
+                foreach (var cat in cats)
+                {
+                    Console.WriteLine($"{cat.Id} | {cat.Name} | {cat.Breed} | {cat.Age}");
+                }
             }
 
             Console.WriteLine("\nНажмите любую клавишу...");
@@ -67,43 +80,75 @@ namespace ConsoleCatShelterLaba1
             cat.Breed = Console.ReadLine();
 
             Console.Write("Возраст: ");
-            cat.Age = int.Parse(Console.ReadLine());
+            if (int.TryParse(Console.ReadLine(), out int age))
+            {
+                cat.Age = age;
+            }
+            else
+            {
+                Console.WriteLine("Некорректный возраст!");
+                Console.ReadKey();
+                return;
+            }
 
-            catService.AddCat(cat);
-            Console.WriteLine("Кот добавлен!");
+            try
+            {
+                catService.AddCat(cat);
+                Console.WriteLine("Кот добавлен и сохранен в файл!");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка: {ex.Message}");
+            }
+
             Console.ReadKey();
         }
 
+        // Остальные методы (EditCat, DeleteCat, ShowStats) остаются без изменений
         static void EditCat()
         {
             Console.Clear();
             ShowAllCats();
 
             Console.Write("Введите ID кота для изменения: ");
-            int id = int.Parse(Console.ReadLine());
-
-            var cat = catService.GetCatById(id);
-            if (cat == null)
+            if (int.TryParse(Console.ReadLine(), out int id))
             {
-                Console.WriteLine("Кот не найден!");
-                Console.ReadKey();
-                return;
+                var cat = catService.GetCatById(id);
+                if (cat == null)
+                {
+                    Console.WriteLine("Кот не найден!");
+                    Console.ReadKey();
+                    return;
+                }
+
+                Console.Write($"Имя ({cat.Name}): ");
+                string name = Console.ReadLine();
+                if (!string.IsNullOrEmpty(name)) cat.Name = name;
+
+                Console.Write($"Порода ({cat.Breed}): ");
+                string breed = Console.ReadLine();
+                if (!string.IsNullOrEmpty(breed)) cat.Breed = breed;
+
+                Console.Write($"Возраст ({cat.Age}): ");
+                string ageInput = Console.ReadLine();
+                if (!string.IsNullOrEmpty(ageInput) && int.TryParse(ageInput, out int age))
+                    cat.Age = age;
+
+                try
+                {
+                    catService.UpdateCat(cat);
+                    Console.WriteLine("Кот изменен и данные сохранены!");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Ошибка: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine("Некорректный ID!");
             }
 
-            Console.Write($"Имя ({cat.Name}): ");
-            string name = Console.ReadLine();
-            if (!string.IsNullOrEmpty(name)) cat.Name = name;
-
-            Console.Write($"Порода ({cat.Breed}): ");
-            string breed = Console.ReadLine();
-            if (!string.IsNullOrEmpty(breed)) cat.Breed = breed;
-
-            Console.Write($"Возраст ({cat.Age}): ");
-            string ageInput = Console.ReadLine();
-            if (!string.IsNullOrEmpty(ageInput)) cat.Age = int.Parse(ageInput);
-
-            catService.UpdateCat(cat);
-            Console.WriteLine("Кот изменен!");
             Console.ReadKey();
         }
 
@@ -113,21 +158,33 @@ namespace ConsoleCatShelterLaba1
             ShowAllCats();
 
             Console.Write("Введите ID кота для удаления: ");
-            int id = int.Parse(Console.ReadLine());
-
-            var cat = catService.GetCatById(id);
-            if (cat == null)
+            if (int.TryParse(Console.ReadLine(), out int id))
             {
-                Console.WriteLine("Кот не найден!");
-                Console.ReadKey();
-                return;
+                var cat = catService.GetCatById(id);
+                if (cat == null)
+                {
+                    Console.WriteLine("Кот не найден!");
+                    Console.ReadKey();
+                    return;
+                }
+
+                Console.Write($"Удалить кота {cat.Name}? (y/n): ");
+                if (Console.ReadLine().ToLower() == "y")
+                {
+                    try
+                    {
+                        catService.DeleteCat(id);
+                        Console.WriteLine("Кот удален и данные сохранены!");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Ошибка: {ex.Message}");
+                    }
+                }
             }
-
-            Console.Write($"Удалить кота {cat.Name}? (y/n): ");
-            if (Console.ReadLine().ToLower() == "y")
+            else
             {
-                catService.DeleteCat(id);
-                Console.WriteLine("Кот удален!");
+                Console.WriteLine("Некорректный ID!");
             }
 
             Console.ReadKey();
@@ -139,9 +196,16 @@ namespace ConsoleCatShelterLaba1
             Console.WriteLine("Статистика по породам:");
 
             var stats = catService.GetCatsByBreedGrouped();
-            foreach (var item in stats)
+            if (stats.Count == 0)
             {
-                Console.WriteLine($"{item.Key}: {item.Value} котов");
+                Console.WriteLine("Нет данных для статистики");
+            }
+            else
+            {
+                foreach (var item in stats)
+                {
+                    Console.WriteLine($"{item.Key}: {item.Value} котов");
+                }
             }
 
             Console.WriteLine($"\nВсего котов: {catService.GetTotalCats()}");
