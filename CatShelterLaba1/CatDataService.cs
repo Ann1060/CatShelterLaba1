@@ -17,6 +17,7 @@ namespace Model
         private List<Cat> _cats = new List<Cat>();
         private int _nextId = 1;
         private readonly List<ICatDataObserver> _observers = new List<ICatDataObserver>();
+        public event EventHandler <List<Cat>> DataChanged;
 
         public static CatDataService Instance
         {
@@ -45,7 +46,44 @@ namespace Model
 
             Console.WriteLine($"CatDataService загружает из: {_dataFilePath}");
             LoadDataFromFile();
+            SetupFileWatcher();
         }
+
+        private void SetupFileWatcher()
+        {
+            try
+            {
+                string directory = Path.GetDirectoryName(_dataFilePath);
+                string fileName = Path.GetFileName(_dataFilePath);
+
+                var fileWatcher = new FileSystemWatcher
+                {
+                    Path = directory,
+                    Filter = fileName,
+                    NotifyFilter = NotifyFilters.LastWrite
+                };
+
+                fileWatcher.Changed += (s, e) =>
+                {
+                    System.Threading.Thread.Sleep(100);
+                    LoadDataFromFile();
+                    OnDataChanged();
+                };
+
+                fileWatcher.EnableRaisingEvents = true;
+                Console.WriteLine("FileWatcher запущен для отслеживания изменений файла");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Ошибка настройки FileWatcher: {ex.Message}");
+            }
+        }
+        protected virtual void OnDataChanged()
+        {
+            DataChanged?.Invoke(this, new List<Cat>(_cats));
+        }
+
+
 
         private void LoadDataFromFile()
         {
@@ -59,7 +97,6 @@ namespace Model
                     {
                         _cats = cats;
                         _nextId = _cats.Count > 0 ? _cats.Max(c => c.Id) + 1 : 1;
-                        Console.WriteLine($"Загружено {_cats.Count} котов, следующий ID: {_nextId}");
                     }
                 }
                 else
@@ -79,15 +116,8 @@ namespace Model
         {
             try
             {
-                Console.WriteLine($"CatDataService сохраняет в: {_dataFilePath}");
-                System.Diagnostics.Debug.WriteLine($"CatDataService сохраняет в: {_dataFilePath}");
-
-                // СОХРАНЯЕМ данные в файл
                 string json = JsonConvert.SerializeObject(_cats, Newtonsoft.Json.Formatting.Indented);
                 File.WriteAllText(_dataFilePath, json);
-
-                Console.WriteLine($"Файл существует: {File.Exists(_dataFilePath)}");
-                Console.WriteLine($"Успешно сохранено {_cats.Count} котов");
             }
             catch (Exception ex)
             {
@@ -95,13 +125,7 @@ namespace Model
             }
         }
 
-        private void NotifyObservers()
-        {
-            foreach (var observer in _observers.ToList())
-            {
-                observer.OnCatDataChanged();
-            }
-        }
+        
 
         public void RegisterObserver(ICatDataObserver observer)
         {
@@ -120,11 +144,11 @@ namespace Model
             cat.Id = _nextId++;
             _cats.Add(cat);
             SaveDataToFile();
-            NotifyObservers();
+            //OnDataChanged();
         }
 
         public List<Cat> GetAllCats() => new List<Cat>(_cats);
-
+        
         public Cat GetCatById(int id) => _cats.FirstOrDefault(c => c.Id == id);
 
         public void UpdateCat(Cat updatedCat)
@@ -136,7 +160,7 @@ namespace Model
                 cat.Breed = updatedCat.Breed;
                 cat.Age = updatedCat.Age;
                 SaveDataToFile();
-                NotifyObservers();
+                //OnDataChanged();
             }
         }
 
@@ -147,7 +171,7 @@ namespace Model
             {
                 _cats.Remove(cat);
                 SaveDataToFile();
-                NotifyObservers();
+                //OnDataChanged();
             }
         }
 

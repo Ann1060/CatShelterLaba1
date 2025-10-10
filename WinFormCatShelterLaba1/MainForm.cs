@@ -11,10 +11,9 @@ using WinFormCatShelterLaba1;
 
 namespace WindowsFormsCatShelter
 {
-    public partial class MainForm : Form, ICatDataObserver
+    public partial class MainForm : Form
     {
         private CatDataService catService = CatDataService.Instance;
-        private readonly string _dataFilePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "SharedCatsData.json"));
         private BindingList<Cat> catsBindingList;
 
         public MainForm()
@@ -23,7 +22,7 @@ namespace WindowsFormsCatShelter
             InitializeDataGridView();
 
             // Регистрируем форму как наблюдателя
-            catService.RegisterObserver(this);
+            catService.DataChanged += OnDataChanged;
 
             LoadCats();
         }
@@ -40,12 +39,11 @@ namespace WindowsFormsCatShelter
             dataGridViewCats.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         }
 
-        // Реализация интерфейса наблюдателя
-        public void OnCatDataChanged()
+        private void OnDataChanged(object sender, System.Collections.Generic.List<Cat> cats)
         {
             if (this.InvokeRequired)
             {
-                this.Invoke(new Action(LoadCats));
+                this.Invoke(new Action(() => LoadCats()));
             }
             else
             {
@@ -53,13 +51,12 @@ namespace WindowsFormsCatShelter
             }
         }
 
-        private void LoadCats()
+        public void LoadCats()
         {
             try
             {
                 var cats = catService.GetAllCats();
                 catsBindingList = new BindingList<Cat>(cats);
-
                 dataGridViewCats.DataSource = catsBindingList;
                 labelTotal.Text = $"Всего котов: {cats.Count}";
                 dataGridViewCats.Refresh();
@@ -156,13 +153,37 @@ namespace WindowsFormsCatShelter
 
             foreach (var item in stats)
             {
-                message += $"{item.Key}: {item.Value} котов\n";
+                string catWord = GetCorrectCatWord(item.Value);
+                message += $"{item.Key}: {item.Value} {catWord}\n";
             }
 
             message += $"\nВсего котов: {catService.GetTotalCats()}";
 
-            MessageBox.Show(message, "Статистика приюта",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(message, "Статистика приюта");
+        }
+
+        private string GetCorrectCatWord(int count)
+        {
+            int lastDigit = count % 10;
+            int lastTwoDigits = count % 100;
+
+            // Исключения для чисел 11-14
+            if (lastTwoDigits >= 11 && lastTwoDigits <= 14)
+            {
+                return "котов";
+            }
+
+            switch (lastDigit)
+            {
+                case 1:
+                    return "кот";
+                case 2:
+                case 3:
+                case 4:
+                    return "кота";
+                default:
+                    return "котов";
+            }
         }
 
         private void buttonRefresh_Click(object sender, EventArgs e)
@@ -181,7 +202,7 @@ namespace WindowsFormsCatShelter
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
             base.OnFormClosed(e);
-            catService.UnregisterObserver(this);
+            catService.DataChanged -= OnDataChanged;
         }
     }
 }

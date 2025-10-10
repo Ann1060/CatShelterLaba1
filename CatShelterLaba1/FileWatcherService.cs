@@ -16,7 +16,7 @@ namespace Model
             _dataService = CatDataService.Instance;
 
             // Тот же путь что в CatDataService
-            string solutionDirectory = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.Parent.FullName;
+            string solutionDirectory = Directory.GetParent(Directory.GetCurrentDirectory()).Parent.Parent.FullName;
 
             _filePath = Path.Combine(solutionDirectory, "SharedCatsData.json");
 

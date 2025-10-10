@@ -47,8 +47,8 @@
     <Compile Include="Cat.cs" />
     <Compile Include="CatDataService.cs" />
     <Compile Include="CatService.cs" />
-    <Compile Include="FileWatcherService.cs" />
     <Compile Include="ICatDataObserver.cs" />
+    <Compile Include="FileWatcherService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

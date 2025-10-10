@@ -7,13 +7,10 @@ namespace ConsoleCatShelter
     class Program
     {
         static CatDataService catService = CatDataService.Instance;
-        private readonly string _dataFilePath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "SharedCatsData.json"));
-
 
         static void Main(string[] args)
         {
-
-
+            catService.DataChanged += OnDataChanged;
             while (true)
             {
                 Console.Clear();
@@ -36,10 +33,15 @@ namespace ConsoleCatShelter
                     case "4": DeleteCat(); break;
                     case "5": ShowStats(); break;
                     case "6":
+                        catService.DataChanged -= OnDataChanged;
                         Console.WriteLine("Данные сохранены. До свидания!");
                         return;
                 }
             }
+        }
+
+        private static void OnDataChanged(object sender, System.Collections.Generic.List<Cat> cats)
+        {
         }
 
         static void ShowAllCats()
